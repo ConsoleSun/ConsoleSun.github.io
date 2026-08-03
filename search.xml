@@ -4,6 +4,39 @@
   
     
     <entry>
+      <title>让 Agent 记住客户:外贸智能体 v0.7.2 迭代记录</title>
+      <link href="/2026/08/03/%E8%AE%A9Agent%E8%AE%B0%E4%BD%8F%E5%AE%A2%E6%88%B7-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-7-2%E8%BF%AD%E4%BB%A3%E8%AE%B0%E5%BD%95/"/>
+      <url>/2026/08/03/%E8%AE%A9Agent%E8%AE%B0%E4%BD%8F%E5%AE%A2%E6%88%B7-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-7-2%E8%BF%AD%E4%BB%A3%E8%AE%B0%E5%BD%95/</url>
+      
+        <content type="html"><![CDATA[<blockquote><p>这是上一篇《企业级 AI Agent 框架实践:外贸智能体系统》的<strong>迭代续篇</strong>。那篇讲的是整体框架,这篇讲的是 v0.7.2 一次真实的版本迭代:<strong>客户记忆系统、滚动对话摘要、获客性能优化、发信策略收紧</strong>。它记录的不是”我又写了什么”,而是”我为什么这么写”。</p></blockquote><h2 id="一、这次迭代最想解决的一个问题"><a href="#一、这次迭代最想解决的一个问题" class="headerlink" title="一、这次迭代最想解决的一个问题"></a>一、这次迭代最想解决的一个问题</h2><p>做外贸,最珍贵的信息藏在客户的话里:</p><blockquote><p>“我们需要 500ml 高白料伏特加瓶,年需求 20 万只,要配 T 型木塞。”</p></blockquote><p>客户今天说完这句,可能三个月后才回来问”上次那款还能做吗”。如果 Agent 什么都不记得,他得重新讲一遍——<strong>每一次都像第一次,这是跟单里最伤体验的事。</strong></p><p>所以 v0.7.2 的第一个目标很明确:<strong>让 Agent 跨会话记住客户的核心需求。</strong></p><h2 id="二、客户记忆系统-零额外-LLM-调用的沉淀方案"><a href="#二、客户记忆系统-零额外-LLM-调用的沉淀方案" class="headerlink" title="二、客户记忆系统:零额外 LLM 调用的沉淀方案"></a>二、客户记忆系统:零额外 LLM 调用的沉淀方案</h2><h3 id="记忆怎么落下来"><a href="#记忆怎么落下来" class="headerlink" title="记忆怎么落下来"></a>记忆怎么落下来</h3><p>系统的意图预检,本来就是一次轻量级 LLM 调用(同时做澄清检测 + 视角分类)。这次迭代让它<strong>顺带多输出一个 <code>important_memory_note</code></strong>:</p><ul><li>识别客户本轮消息里的核心业务需求(瓶型、容量、材质、采购量、目标价、目的港、定制工艺、测试要求)</li><li>提炼成一句高度精炼的话,带时间戳<strong>增量追加</strong>进 PostgreSQL 的 <code>customer_memory</code> 表</li><li>纯招呼&#x2F;闲聊&#x2F;无新需求 → 设为 null,不写</li></ul><p><strong>没有新增任何一次 LLM 调用,复用还是那一次预检。</strong> 这是整个方案最让我满意的一点:记忆是”顺水推舟”沉淀下来的,而不是额外付出成本。</p><h3 id="记忆怎么被用起来"><a href="#记忆怎么被用起来" class="headerlink" title="记忆怎么被用起来"></a>记忆怎么被用起来</h3><p>新增了一个 <code>get_customer_memory</code> 工具,三种查询方式:</p><table><thead><tr><th>方式</th><th>用法</th><th>场景</th></tr></thead><tbody><tr><td>按邮箱精确查</td><td><code>email=buyer@brand.com</code></td><td>跟进某个具体客户</td></tr><tr><td>按关键词全文检索</td><td><code>keyword=伏特加瓶</code></td><td>找出所有提过该需求的客户</td></tr><tr><td>列出全部</td><td>都不传</td><td>全量档案速览</td></tr></tbody></table><p>注入策略也做了分层:</p><ul><li><strong>客户侧</strong>:双层有界注入——最近 8 条 + 即时检索更早的记录</li><li><strong>员工侧</strong>:注入最近活跃客户记忆索引,触发 Agent 主动回唤 <code>get_customer_memory</code></li></ul><p>所有注入都压在消息末尾,<strong>不破坏 KV 缓存前缀</strong>——这是项目一贯的纪律。</p><h3 id="安全隔离-这块是真正的亮点"><a href="#安全隔离-这块是真正的亮点" class="headerlink" title="安全隔离:这块是真正的亮点"></a>安全隔离:这块是真正的亮点</h3><p>记忆系统最容易被做砸的地方,是<strong>跨客户泄露</strong>。这里有一个很多人会踩的坑:</p><blockquote><p>所有匿名外部客户<strong>共用同一个系统账号</strong>。如果拿这个账号当记忆主键,客户 A 的需求就会泄露给客户 B。</p></blockquote><p>我用了 <strong>email → user → session 三档降级</strong>主键,并且在代码里识别出共享系统账号,<strong>跳过 user 档,直接降到 session 级隔离</strong>——每个匿名会话的记忆互相隔离。客户一旦留下邮箱,再把 session 记忆<strong>融合迁移成永久的 email 键</strong>,记忆跟着客户走,而不是跟着会话走。</p><p>查询侧同样做了隔离:关键词检索只搜 <code>email:%</code> 永久键,显式排除内部 user 键(会泄露其他员工的跟进备注)和临时 session 键。</p><p>再加最后一道:工具网关层 <code>role_in([&quot;staff&quot;,&quot;admin&quot;])</code> 权限——<strong>客户角色在工具层就调不到这个工具</strong>,连尝试的机会都没有。</p><blockquote><p>记忆的”物理隔离”在代码里,不在提示词里。这是我从安全那一课带过来的原则。</p></blockquote><h2 id="三、滚动对话摘要-长对话的解法"><a href="#三、滚动对话摘要-长对话的解法" class="headerlink" title="三、滚动对话摘要:长对话的解法"></a>三、滚动对话摘要:长对话的解法</h2><p>v0.7.1 之前,历史超过 20 轮会被<strong>硬切</strong>。硬切有个隐患:第 3 轮说过的一个关键规格,如果第 21 轮还要用,它已经没了。</p><p>v0.7.2 的做法是<strong>滚动摘要</strong>:</p><ul><li>历史超过 <code>CONVERSATION_MAX_TURNS</code>(默认 20)后,窗口外最老的一段<strong>折叠进摘要</strong>,再裁剪历史</li><li>摘要由 LLM 合并生成,≤250 字,只保留要点</li><li><strong>摘要只在折叠时更新(每 N 轮一次),非逐轮动态</strong> → 前缀保持恒定,KV 缓存不破</li></ul><p>这把”超长对话会丢关键信息”的隐患,从”裁掉”变成了”压缩进摘要”。代价是每折叠一次多一次 LLM 调用,换来的是长任务不丢上下文。</p><h2 id="四、获客性能优化-每封邮件-40s-→-25s"><a href="#四、获客性能优化-每封邮件-40s-→-25s" class="headerlink" title="四、获客性能优化:每封邮件 40s → 25s"></a>四、获客性能优化:每封邮件 40s → 25s</h2><p>全自动获客这条流水线,之前的瓶颈在于<strong>串行</strong>:挖完一家,写一封,发一封,同步 ERP,再来下一家。v0.7.2 改成流水线:</p><ul><li><strong>挖掘并发</strong>(默认 2):同时挖多个客户</li><li><strong>批量并发起草</strong>(批量 5、并发 4):多封开发信同时由 LLM 起草</li><li><strong>生产-消费流水线</strong>:把挖掘、起草、ERP 同步的时间<strong>藏进发送间隔</strong>(限速的等待时间不再空转)</li><li><strong>ERP 异步化</strong>:写 ERP 不阻塞发信流程</li></ul><p>结果:<strong>每封邮件的墙钟时间从 ~40s 降到 ~25s,提速约 37%</strong>。同样的时间里,能触达更多客户。</p><h2 id="五、发信策略收紧-别让客户看到错误的发件人"><a href="#五、发信策略收紧-别让客户看到错误的发件人" class="headerlink" title="五、发信策略收紧:别让客户看到错误的发件人"></a>五、发信策略收紧:别让客户看到错误的发件人</h2><p>之前 <code>send_email</code> 有”个人 SMTP 优先、全局 SMTP 兜底”的逻辑。问题是:如果全局 SMTP 兜底了,客户会<strong>收到一封发件人不是业务员的邮件</strong>——在外贸里,这会让客户瞬间失去信任(“你是谁?”).</p><p>v0.7.2 收紧策略:<strong><code>send_email</code> 只走员工个人 SMTP,移除全局 SMTP 回退</strong>。并加了端口推断:465 用隐式 SSL,其余端口用 STARTTLS。</p><blockquote><p>宁可发不出,也不能用一个”错误的身份”发出邮件。信任是外贸的第一资产。</p></blockquote><h2 id="六、其它工程修正"><a href="#六、其它工程修正" class="headerlink" title="六、其它工程修正"></a>六、其它工程修正</h2><ul><li><strong>补全缓存 7 天</strong>:单公司联系方式按 place_id&#x2F;website 缓存 7 天,获客重跑不重复爬官网(搜索缓存仍 1 小时)</li><li><strong>API key 前缀兼容</strong>:修复种子 key(8 位前缀)与新建 key(12 位前缀)不一致导致的 401,客户页不再超时</li><li><strong>测试扩充</strong>:v0.7.2 一次新增 35 条用例,覆盖记忆、摘要、上下文注入、campaign 流水线(当前共 559 条)</li></ul><h2 id="七、一点反思"><a href="#七、一点反思" class="headerlink" title="七、一点反思"></a>七、一点反思</h2><p><strong>1. 记忆本身还没有压缩。</strong> 对话有滚动摘要,但 <code>key_requirements</code> 是纯增量累积——一个长期客户聊一年,记忆 blob 会越来越长。下一步计划:对记忆本身做摘要折叠,或者只注入”最近 N 条 + 摘要”。</p><p><strong>2. 记忆系统只是”全流程信息跟踪”的第一块砖。</strong> 现在存的是”提炼后的核心需求一句话”,不是”完整来往邮件 + 图向量”。真正完整的形态——邮件归档、图向量化、LLM 自动综合回复、复杂任务转交、Agent 自进化——还在路线图里。这条路还很长,但至少,第一步迈出去了。</p><hr><p><em>这篇是系列的第二篇。系列第一篇讲整体框架:《企业级 AI Agent 框架实践:外贸智能体系统》。</em></p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> AI Agent </tag>
+            
+            <tag> LLM </tag>
+            
+            <tag> 架构设计 </tag>
+            
+            <tag> 外贸数字化 </tag>
+            
+            <tag> 记忆系统 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>企业级 AI Agent 框架实践:外贸智能体系统</title>
       <link href="/2026/08/02/%E4%BC%81%E4%B8%9A%E7%BA%A7AI-Agent%E6%A1%86%E6%9E%B6%E5%AE%9E%E8%B7%B5-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93%E7%B3%BB%E7%BB%9F/"/>
       <url>/2026/08/02/%E4%BC%81%E4%B8%9A%E7%BA%A7AI-Agent%E6%A1%86%E6%9E%B6%E5%AE%9E%E8%B7%B5-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93%E7%B3%BB%E7%BB%9F/</url>
