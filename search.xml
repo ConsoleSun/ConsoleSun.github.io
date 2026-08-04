@@ -4,6 +4,41 @@
   
     
     <entry>
+      <title>让开发信拥有记忆:外贸智能体 v0.8.1,邮件归档与钉钉通知</title>
+      <link href="/2026/08/04/%E8%AE%A9%E5%BC%80%E5%8F%91%E4%BF%A1%E6%8B%A5%E6%9C%89%E8%AE%B0%E5%BF%86-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-8-1%E8%BF%AD%E4%BB%A3%E8%AE%B0%E5%BD%95/"/>
+      <url>/2026/08/04/%E8%AE%A9%E5%BC%80%E5%8F%91%E4%BF%A1%E6%8B%A5%E6%9C%89%E8%AE%B0%E5%BF%86-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-8-1%E8%BF%AD%E4%BB%A3%E8%AE%B0%E5%BD%95/</url>
+      
+        <content type="html"><![CDATA[<blockquote><p>这是系列第三篇。前两篇讲了整体框架和客户记忆系统,这篇讲 v0.8.1 的一次关键迭代:<strong>客户开发历史知识库(第 5 个 LightRAG)、邮件归档与域名映射、公司画像沉淀、钉钉获客通知</strong>。它回答一个真问题:<strong>如何让每一封开发信,都站在这个客户过去的所有往来之上。</strong></p></blockquote><h2 id="一、这次迭代要解决的两个真问题"><a href="#一、这次迭代要解决的两个真问题" class="headerlink" title="一、这次迭代要解决的两个真问题"></a>一、这次迭代要解决的两个真问题</h2><p><strong>问题一:开发信不”认识”客户。</strong> 之前发开发信,靠的是模板 + 产品关键词 + 目标公司名称。但客户是有历史的——他回没回过信?回信里提过什么?我们给这家公司写过什么?这些信息散在收件箱和 ERP 里,起草时根本用不上。<strong>邮件没有记忆,开发信就只能是模板。</strong></p><p><strong>问题二:获客任务跑完了,没人知道。</strong> 全自动获客一跑就是几十分钟,发了几十封邮件——成功了、还是中途挂了,业务员不打开系统根本不知道。</p><p>v0.8.1 就干这两件事。</p><h2 id="二、客户开发历史知识库-第-5-个-LightRAG-实例"><a href="#二、客户开发历史知识库-第-5-个-LightRAG-实例" class="headerlink" title="二、客户开发历史知识库:第 5 个 LightRAG 实例"></a>二、客户开发历史知识库:第 5 个 LightRAG 实例</h2><p>系统原来有 4 个知识库(业务&#x2F;技术&#x2F;管理&#x2F;开发信),这次加了<strong>第 5 个:客户开发历史</strong>(Port 9635)。</p><p><strong>沉淀什么</strong>——每一次外发开发信,后台异步沉淀成档案:</p><ul><li>开发时间、我方开发信<strong>全文</strong></li><li>客户回信(IMAP 收到后按 from 域名匹配归档)</li><li>公司画像(主营产品&#x2F;行业&#x2F;认证&#x2F;规模&#x2F;合作品牌)</li><li>开发来源(国家 + 关键词)、负责业务员</li></ul><p><strong>起草时怎么用</strong>——三路 RAG <strong>并行</strong>参考:</p><table><thead><tr><th>路由</th><th>查什么</th><th>给开发信什么</th></tr></thead><tbody><tr><td>业务实力库</td><td>产品、产能、资质</td><td>我能做什么</td></tr><tr><td>开发信范例库</td><td>8000+ 封爆款话术</td><td>这封信该怎么写</td></tr><tr><td><strong>历史客户库</strong></td><td>这家客户&#x2F;同类客户的过往往来</td><td>这封信该对他说什么</td></tr></tbody></table><p><strong>关键工程决策,逐个讲:</strong></p><p><strong>1. 域名映射做”邮件对关联”。</strong> 标准做法是用 Message-ID &#x2F; In-Reply-To 把”我方开发信”和”客户回信”关联成一对。但现实是:<strong>外发邮件拿不到 Message-ID</strong>(现实约束)。所以用<strong>域名映射近似关联</strong>:发信时记录”发给哪个域名”,回信时按 from 域名匹配。同时把 In-Reply-To 存进收件箱,备未来升级。</p><blockquote><p>在约束下找近似解,同时给精确解留好位置——这是生产环境里最常见的取舍。</p></blockquote><p><strong>2. 幂等插入三重保险。</strong> 归档是后台异步的,异步最怕重复。Redis 去重 + LightRAG 409 跳过 + track_status 轮询确认入库,三层防重。</p><p><strong>3. 隐私隔离。</strong> <strong>非获客客户的邮件不进库。</strong> 只归档”获客链路”里发出的和收到的邮件,不清洗客户的整个收件箱——这条边界,防的是把别人的隐私卷进自己的知识库。</p><h2 id="三、钉钉通知-复杂任务转交的第一步"><a href="#三、钉钉通知-复杂任务转交的第一步" class="headerlink" title="三、钉钉通知:复杂任务转交的第一步"></a>三、钉钉通知:复杂任务转交的第一步</h2><p>新增 <code>agent/notify/dingtalk.py</code>:</p><ul><li><strong>Webhook + HMAC-SHA256 加签</strong>(不是裸 Webhook,密钥用时间戳签名)</li><li>text &#x2F; markdown 双格式,支持 @ 指定人</li><li>获客任务<strong>完成</strong> → 推送结果;获客任务<strong>异常终止</strong> → 推送错误并 <strong>@all</strong></li></ul><p>但最有工程价值的是 <code>_notify_safe</code> 解耦:</p><blockquote><p>通知模块<strong>任何故障</strong>——导入失败、方法缺失、网络异常、没配置——<strong>全部静默,绝不影响获客主流程</strong>。</p></blockquote><p>配套 3 条解耦测试,专门验证”通知挂了,获客照跑”。<strong>外围功能可以坏,核心链路不能跟着死。</strong></p><h2 id="四、公司画像沉淀-让开发信真的”懂”客户"><a href="#四、公司画像沉淀-让开发信真的”懂”客户" class="headerlink" title="四、公司画像沉淀:让开发信真的”懂”客户"></a>四、公司画像沉淀:让开发信真的”懂”客户</h2><p>爬官网时<strong>顺带</strong>提取主营产品、行业、认证、规模、合作品牌,随补全缓存沉淀 7 天,写开发信时进【目标公司信息】段。</p><p>之前开发信是”模板 + 客户名”,现在是真的”知道你做什么、可能关心什么”。成本几乎为零(复用爬官网那一次请求),收益是每封信的个性化程度。</p><h2 id="五、一个值得记录的取舍-并发-→-顺序"><a href="#五、一个值得记录的取舍-并发-→-顺序" class="headerlink" title="五、一个值得记录的取舍:并发 → 顺序"></a>五、一个值得记录的取舍:并发 → 顺序</h2><ul><li>v0.7.2 为了提速,做了批量并发起草(每封 40s → 25s)</li><li>但发现:批量起草<strong>共享 RAG 状态</strong>,导致邮件<strong>不参考 RAG</strong>——速度有了,质量塌了</li><li>v0.8.0 重构回<strong>逐家顺序流水线</strong>:关键词 → 谷歌 → 逐家官网补邮箱(失败跳过)→ 三路 RAG → 起草 → 发送 → ERP → 历史沉淀 → 下一家</li></ul><p><strong>先并发提速,再发现并发牺牲质量,回退顺序保质量。</strong> 这个取舍比”加并发”更难做——知道什么时候该拿掉并发,和知道什么时候加并发,是两种功力。</p><h2 id="六、一个生产级彩蛋-LLM-容错解析"><a href="#六、一个生产级彩蛋-LLM-容错解析" class="headerlink" title="六、一个生产级彩蛋:LLM 容错解析"></a>六、一个生产级彩蛋:LLM 容错解析</h2><p><code>llm_parse.py</code>:DeepSeek-v4-flash 是<strong>推理模型</strong>,<code>max_tokens</code> 会被”思考”token 吃光,输出经常被截断(finish_reason&#x3D;length),JSON 不完整、带代码围栏、夹带说明文字。容错解析:去代码围栏 → 整串 loads → <strong>回退最外层平衡花括号截取</strong>。</p><p>只有真实上线、被截断坑过的人,才会写这种东西。</p><h2 id="七、和”待更新项”的对账"><a href="#七、和”待更新项”的对账" class="headerlink" title="七、和”待更新项”的对账"></a>七、和”待更新项”的对账</h2><table><thead><tr><th>待更新项</th><th>状态</th></tr></thead><tbody><tr><td>全流程信息跟踪(存邮件)</td><td>✅ 落地:第 5 个 LightRAG + 域名映射归档</td></tr><tr><td>全流程信息跟踪(图向量 + LLM 自动综合回复)</td><td>⏳ 还差后半截(LightRAG 本身是图增强的,基础已备好)</td></tr><tr><td>复杂任务转交(钉钉通知)</td><td>✅ 通知通道上线(目前覆盖获客任务完成&#x2F;异常,客户意图触发待做)</td></tr><tr><td>Agent 自进化</td><td>⏳ 未动</td></tr></tbody></table><p><strong>下一步</strong>:把”客户回信 → LLM 自动综合回复”接上,历史客户库就算真正闭环了;再把钉钉通知从”任务级”下沉到”客户意图级”——客户在对话里明确要找人,Agent 直接钉钉通知业务员。</p><hr><p><em>系列目录:第一篇《企业级 AI Agent 框架实践:外贸智能体系统》(整体框架)→ 第二篇《让 Agent 记住客户:外贸智能体 v0.7.2 迭代记录》(客户记忆与滚动摘要)→ 本篇(邮件归档与钉钉通知)。</em></p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> AI Agent </tag>
+            
+            <tag> LLM </tag>
+            
+            <tag> 架构设计 </tag>
+            
+            <tag> 外贸数字化 </tag>
+            
+            <tag> 邮件归档 </tag>
+            
+            <tag> 钉钉 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>让 Agent 记住客户:外贸智能体 v0.7.2 迭代记录</title>
       <link href="/2026/08/03/%E8%AE%A9Agent%E8%AE%B0%E4%BD%8F%E5%AE%A2%E6%88%B7-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-7-2%E8%BF%AD%E4%BB%A3%E8%AE%B0%E5%BD%95/"/>
       <url>/2026/08/03/%E8%AE%A9Agent%E8%AE%B0%E4%BD%8F%E5%AE%A2%E6%88%B7-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-7-2%E8%BF%AD%E4%BB%A3%E8%AE%B0%E5%BD%95/</url>
@@ -24,11 +59,11 @@
             
             <tag> LLM </tag>
             
+            <tag> 记忆系统 </tag>
+            
             <tag> 架构设计 </tag>
             
             <tag> 外贸数字化 </tag>
-            
-            <tag> 记忆系统 </tag>
             
         </tags>
       
