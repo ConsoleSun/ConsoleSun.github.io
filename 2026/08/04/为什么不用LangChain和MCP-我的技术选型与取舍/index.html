@@ -1,0 +1,307 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>为什么不用 LangChain 和 MCP:外贸 Agent 的技术选型与取舍 | 玉虫舞的博客</title><meta name="author" content="玉虫舞"><meta name="copyright" content="玉虫舞"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="这是系列第四篇。前几篇讲了整体框架、客户记忆、邮件归档,这篇回答一个绕不开的问题:为什么你的技术栈看起来不主流? 不用 LangChain、不用 MCP、选了图+向量混合检索——不是标新立异,是评估之后的取舍。这篇把三条选择的完整理由写清楚。  一、选型的原则:为约束做选择,不为潮流做选择我的判断标准只有一条:  一项技术的价值 &#x3D; 它解决的问题 ÷ 它带来的成本,并且必须在自己项目的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="为什么不用 LangChain 和 MCP:外贸 Agent 的技术选型与取舍">
+<meta property="og:url" content="https://consolesun.github.io/2026/08/04/%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E7%94%A8LangChain%E5%92%8CMCP-%E6%88%91%E7%9A%84%E6%8A%80%E6%9C%AF%E9%80%89%E5%9E%8B%E4%B8%8E%E5%8F%96%E8%88%8D/index.html">
+<meta property="og:site_name" content="玉虫舞的博客">
+<meta property="og:description" content="这是系列第四篇。前几篇讲了整体框架、客户记忆、邮件归档,这篇回答一个绕不开的问题:为什么你的技术栈看起来不主流? 不用 LangChain、不用 MCP、选了图+向量混合检索——不是标新立异,是评估之后的取舍。这篇把三条选择的完整理由写清楚。  一、选型的原则:为约束做选择,不为潮流做选择我的判断标准只有一条:  一项技术的价值 &#x3D; 它解决的问题 ÷ 它带来的成本,并且必须在自己项目的">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://consolesun.github.io/img/butterfly-icon.png">
+<meta property="article:published_time" content="2026-08-04T14:42:41.000Z">
+<meta property="article:modified_time" content="2026-08-04T14:43:00.243Z">
+<meta property="article:author" content="玉虫舞">
+<meta property="article:tag" content="AI Agent">
+<meta property="article:tag" content="LLM">
+<meta property="article:tag" content="RAG">
+<meta property="article:tag" content="外贸数字化">
+<meta property="article:tag" content="技术选型">
+<meta property="article:tag" content="架构设计">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://consolesun.github.io/img/butterfly-icon.png"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "为什么不用 LangChain 和 MCP:外贸 Agent 的技术选型与取舍",
+  "url": "https://consolesun.github.io/2026/08/04/%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E7%94%A8LangChain%E5%92%8CMCP-%E6%88%91%E7%9A%84%E6%8A%80%E6%9C%AF%E9%80%89%E5%9E%8B%E4%B8%8E%E5%8F%96%E8%88%8D/",
+  "image": "https://consolesun.github.io/img/butterfly-icon.png",
+  "datePublished": "2026-08-04T14:42:41.000Z",
+  "dateModified": "2026-08-04T14:43:00.243Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "玉虫舞",
+      "url": "https://ConsoleSun.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://consolesun.github.io/2026/08/04/%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E7%94%A8LangChain%E5%92%8CMCP-%E6%88%91%E7%9A%84%E6%8A%80%E6%9C%AF%E9%80%89%E5%9E%8B%E4%B8%8E%E5%8F%96%E8%88%8D/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.6.1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.3.1/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        const data = { value }
+
+        if (ttl != null) {
+          data.expiry = Date.now() + ttl * 86400000
+        }
+
+        localStorage.setItem(key, JSON.stringify(data))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return
+
+        try {
+          const data = JSON.parse(itemStr)
+
+          if (data.expiry && Date.now() > data.expiry) {
+            localStorage.removeItem(key)
+            return
+          }
+
+          return data.value
+        } catch {
+          localStorage.removeItem(key)
+        }
+      }
+    }
+
+    const scriptCache = new Map()
+    const cssCache = new Map()
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => {
+        if (scriptCache.has(url)) {
+          return scriptCache.get(url)
+        }
+
+        const promise = new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+
+          script.src = url
+          script.async = true
+
+          for (const key in attr) {
+            script.setAttribute(key, attr[key])
+          }
+
+          script.onload = resolve
+          script.onerror = reject
+
+          document.head.appendChild(script)
+        })
+
+        scriptCache.set(url, promise)
+
+        return promise
+      },
+      getCSS: (url, id) => {
+        if (cssCache.has(url)) {
+          return cssCache.get(url)
+        }
+
+        const promise = new Promise((resolve, reject) => {
+          const link = document.createElement('link')
+
+          link.rel = 'stylesheet'
+          link.href = url
+
+          if (id) {
+            link.id = id
+          }
+
+          link.onload = resolve
+          link.onerror = reject
+
+          document.head.appendChild(link)
+        })
+
+        cssCache.set(url, promise)
+
+        return promise
+      },
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const metaThemeColor = document.querySelector('meta[name="theme-color"]')
+      const activateDarkMode = () => {
+        document.documentElement.dataset.theme = 'dark'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.dataset.theme = 'light'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const start = 6
+              const end = 18
+              const isNight =
+                start < end
+                    ? hour < start || hour >= end
+                    : hour >= start || hour < end
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', e => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '为什么不用 LangChain 和 MCP:外贸 Agent 的技术选型与取舍',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 8.1.2"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">4</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">9</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">1</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(/img/wallhaven-y8keeg.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">玉虫舞的博客</span></a><a class="nav-page-title" href="/"><span class="site-name">为什么不用 LangChain 和 MCP:外贸 Agent 的技术选型与取舍</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">为什么不用 LangChain 和 MCP:外贸 Agent 的技术选型与取舍</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-08-04T14:42:41.000Z" title="发表于 2026-08-04 22:42:41">2026-08-04</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-08-04T14:43:00.243Z" title="更新于 2026-08-04 22:43:00">2026-08-04</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E6%8A%80%E6%9C%AF/">技术</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>这是系列第四篇。前几篇讲了整体框架、客户记忆、邮件归档,这篇回答一个绕不开的问题:<strong>为什么你的技术栈看起来不主流?</strong> 不用 LangChain、不用 MCP、选了图+向量混合检索——不是标新立异,是评估之后的取舍。这篇把三条选择的完整理由写清楚。</p>
+</blockquote>
+<h2 id="一、选型的原则-为约束做选择-不为潮流做选择"><a href="#一、选型的原则-为约束做选择-不为潮流做选择" class="headerlink" title="一、选型的原则:为约束做选择,不为潮流做选择"></a>一、选型的原则:为约束做选择,不为潮流做选择</h2><p>我的判断标准只有一条:</p>
+<blockquote>
+<p><strong>一项技术的价值 &#x3D; 它解决的问题 ÷ 它带来的成本,并且必须在自己项目的约束下衡量。</strong></p>
+</blockquote>
+<p>通用场景下的”好技术”,换到自己的约束下可能是”贵技术”。所以这篇不讲”哪个框架强”,只讲”在我的约束下,为什么这样选”。</p>
+<p>我的约束是什么:</p>
+<ul>
+<li>单服务、单语言(Python)、单租户</li>
+<li>13 个工具全部自有,不依赖第三方集成生态</li>
+<li>单一模型(DeepSeek),前缀缓存计费,消息结构直接决定成本</li>
+<li>核心链路对延迟敏感,对可控性敏感</li>
+</ul>
+<h2 id="二、为什么不用-LangChain"><a href="#二、为什么不用-LangChain" class="headerlink" title="二、为什么不用 LangChain"></a>二、为什么不用 LangChain</h2><h3 id="LangChain-解决的问题-不是我的问题"><a href="#LangChain-解决的问题-不是我的问题" class="headerlink" title="LangChain 解决的问题,不是我的问题"></a>LangChain 解决的问题,不是我的问题</h3><p>LangChain 的核心价值是<strong>广度</strong>:500+ 集成、统一抽象、快速接入一切。但我的系统只对接有限的几样——邮箱、ERP、Google Places、Milvus、LightRAG、钉钉,且全部是自己实现的工具。<strong>集成生态对我的价值是零,为它付抽象层的成本不划算。</strong></p>
+<h3 id="我需要控制的-恰恰是框架抽象掉的"><a href="#我需要控制的-恰恰是框架抽象掉的" class="headerlink" title="我需要控制的,恰恰是框架抽象掉的"></a>我需要控制的,恰恰是框架抽象掉的</h3><p>三个具体的设计,是直接决定系统成败的,而它们都要求”越过框架”才能做:</p>
+<p><strong>1. KV 缓存优化的消息结构。</strong> 四层上下文、动态内容全部折进用户消息末尾、前缀恒定命中 DeepSeek 前缀缓存。ChatMemory 会按自己的格式重排消息——在它里面做缓存优化,是在跟框架打架。</p>
+<p><strong>2. 工具网关五步管线。</strong> 熔断、权限、执行、校验、修正。框架的 Agent Executor 没有内建的熔断和权限概念,没有”同工具最多重试 2 次的失败修正”——这些照样要自己写。</p>
+<p><strong>3. 视角状态机。</strong> 双角色视角切换、动态 RAG 权重——框架里没有这个概念。</p>
+<p><strong>框架抽象掉的,正是我要控制的;框架给我的,是我用不上的。</strong></p>
+<h3 id="排障的透明度"><a href="#排障的透明度" class="headerlink" title="排障的透明度"></a>排障的透明度</h3><p>LLM 系统有一个特性:非确定性。出问题时,需要看到原始请求和响应。直接调 SDK,请求响应是什么样,看到的就是什么样;隔着一层框架,要先确认是不是框架的封装改了行为,再排查模型问题——多一层包装,多一层未知。</p>
+<h3 id="什么时候我会用"><a href="#什么时候我会用" class="headerlink" title="什么时候我会用"></a>什么时候我会用</h3><p>快速原型、重度依赖集成生态、团队协作需要统一约定、非核心链路。这些场景里 LangChain 是正确选择,我只是不在这些场景里。</p>
+<h2 id="三、为什么不用-MCP"><a href="#三、为什么不用-MCP" class="headerlink" title="三、为什么不用 MCP"></a>三、为什么不用 MCP</h2><h3 id="MCP-卖的是互操作-我的部署里互操作需求为零"><a href="#MCP-卖的是互操作-我的部署里互操作需求为零" class="headerlink" title="MCP 卖的是互操作,我的部署里互操作需求为零"></a>MCP 卖的是互操作,我的部署里互操作需求为零</h3><p>MCP(Model Context Protocol)解决的是:让我的 Agent 能用别人写的工具,让我的工具能被别人的应用用。这是协议层的价值。</p>
+<p>但我的部署是<strong>一个 FastAPI 服务、一门语言、13 个全部自有的工具、单租户</strong>——没有外部工具提供商要接,没有别的应用要消费我的工具。<strong>为一个不存在的需求付协议层的成本,不划算。</strong></p>
+<h3 id="协议给不了的-正是我最看重的"><a href="#协议给不了的-正是我最看重的" class="headerlink" title="协议给不了的,正是我最看重的"></a>协议给不了的,正是我最看重的</h3><p>MCP 标准化的是”工具怎么被调用、结果怎么返回”。但它不提供应用层的三样保证:</p>
+<ul>
+<li>熔断(连续失败 60 秒冷却)</li>
+<li>权限(RBAC + 参数级规则)</li>
+<li>校验与失败修正(同工具最多 2 次)</li>
+</ul>
+<p>这三样必须写在应用层。就算上了 MCP,网关该写的还是一行不少——得到的只是多一层序列化和进程边界,失去的是进程内直接调用(零 IPC、零网络跳、零序列化)。</p>
+<h3 id="我没有拒绝-MCP-只是没走协议层"><a href="#我没有拒绝-MCP-只是没走协议层" class="headerlink" title="我没有拒绝 MCP,只是没走协议层"></a>我没有拒绝 MCP,只是没走协议层</h3><p>我的工具注册表已经把<strong>规格和实现分离</strong>:<code>@tool()</code> 装饰器声明 name &#x2F; description &#x2F; JSON schema(和 MCP 的 tool definition 是同一套 schema 语言),权限规则挂在注册表上,执行是独立异步函数。</p>
+<p>将来如果出现互操作需求(公司其他 AI 应用要复用工具、团队扩张),<strong>包一层适配器就能把注册表暴露成 MCP server——13 个工具一行不用改</strong>。规格层已经对齐,缺的只是传输层。</p>
+<h3 id="什么时候我会用-1"><a href="#什么时候我会用-1" class="headerlink" title="什么时候我会用"></a>什么时候我会用</h3><p>公司有多个 AI 应用需要共享同一套工具、需要接第三方工具服务商、团队跨语言协作。这些场景出现时,MCP 是正确答案,迁移路径已经备好。</p>
+<h2 id="四、为什么选图-向量混合检索"><a href="#四、为什么选图-向量混合检索" class="headerlink" title="四、为什么选图+向量混合检索"></a>四、为什么选图+向量混合检索</h2><h3 id="数据形态决定技术"><a href="#数据形态决定技术" class="headerlink" title="数据形态决定技术"></a>数据形态决定技术</h3><p>业务知识库里的信息不是扁平的文档,而是<strong>关系</strong>:产品 → 规格 → 应用场景 → 客户偏好 → 历史成交。向量检索擅长”语义相似”,但多跳关联(这家客户之前对哪类产品感兴趣、和哪个市场重合)需要<strong>图结构</strong>。</p>
+<p>所以选了 LightRAG(图增强检索)+ Neo4j(图数据库)+ Milvus(向量)的混合方案。LightRAG 本身是成熟的开源项目,不是自研轮子——用它的原因是:图+向量混合是 RAG 的主流进化方向,且它把两种检索的编排成本降到了可维护的程度。</p>
+<h3 id="五个知识库-各司其职"><a href="#五个知识库-各司其职" class="headerlink" title="五个知识库,各司其职"></a>五个知识库,各司其职</h3><table>
+<thead>
+<tr>
+<th>知识库</th>
+<th>承载内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>业务库</td>
+<td>产品、报价、FAQ、行业知识</td>
+</tr>
+<tr>
+<td>技术库</td>
+<td>工艺、材质、质量标准</td>
+</tr>
+<tr>
+<td>管理库</td>
+<td>制度、人事、流程</td>
+</tr>
+<tr>
+<td>开发信库</td>
+<td>8000+ 封爆款邮件模板与话术</td>
+</tr>
+<tr>
+<td>客户历史库</td>
+<td>开发信全文、客户回信、公司画像</td>
+</tr>
+</tbody></table>
+<p>五个库用视角状态机动态分配检索权重,对客户视角和内部视角差异化检索。</p>
+<h3 id="诚实的一部分"><a href="#诚实的一部分" class="headerlink" title="诚实的一部分"></a>诚实的一部分</h3><p><strong>图+向量对比纯向量,提升幅度我还欠一组量化数据。</strong> 选择在设计层面成立(数据形态确实需要关系检索),但”图到底多带来了多少召回提升”没有 A&#x2F;B 过。这是这条选型里唯一没有补齐的证明,也是下一步要做的事。</p>
+<h2 id="五、选型的三条检验标准"><a href="#五、选型的三条检验标准" class="headerlink" title="五、选型的三条检验标准"></a>五、选型的三条检验标准</h2><p>把这次选型的判断方法沉淀下来,供以后的项目复用:</p>
+<p><strong>1. 它解决的是不是我的问题。</strong> 集成生态、互操作、通用记忆——这些是好东西,但不是我的约束下的问题。</p>
+<p><strong>2. 它带来的成本我付不付得起。</strong> 抽象层的排障成本、协议层的运维成本、框架升级的供应链风险——每一项都要用真金白银的维护时间付。</p>
+<p><strong>3. 选择是否有迁移路径。</strong> 不用 MCP,但注册表在规格层对齐 MCP;不用框架,但薄库(SDK、httpx、FastAPI)是随时可换的。<strong>所有”不用”都留了”要用时怎么接”的答案。</strong></p>
+<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>技术选型没有”正确”只有”适配”。偏离主流不是问题,问题是<strong>为什么偏离</strong>——答得出来,是取舍;答不出来,是跟风。</p>
+<p>这个项目的技术栈看起来不主流,但每一条选择都对应一个具体的约束,每一条”不用”都留了迁移路径。<strong>选择为约束服务,举证责任在自己</strong>——这句话,是这次选型最大的收获。</p>
+<hr>
+<p><em>系列目录:第一篇《企业级 AI Agent 框架实践:外贸智能体系统》(整体框架)→ 第二篇《让 Agent 记住客户:v0.7.2 迭代记录》(客户记忆)→ 第三篇《让开发信拥有记忆:v0.8.1 迭代记录》(邮件归档)→ 本篇(技术选型与取舍)。</em></p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://ConsoleSun.github.io">玉虫舞</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://consolesun.github.io/2026/08/04/%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E7%94%A8LangChain%E5%92%8CMCP-%E6%88%91%E7%9A%84%E6%8A%80%E6%9C%AF%E9%80%89%E5%9E%8B%E4%B8%8E%E5%8F%96%E8%88%8D/">https://consolesun.github.io/2026/08/04/%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E7%94%A8LangChain%E5%92%8CMCP-%E6%88%91%E7%9A%84%E6%8A%80%E6%9C%AF%E9%80%89%E5%9E%8B%E4%B8%8E%E5%8F%96%E8%88%8D/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://ConsoleSun.github.io" target="_blank">玉虫舞的博客</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/AI-Agent/">AI Agent</a><a class="post-meta__tags" href="/tags/LLM/">LLM</a><a class="post-meta__tags" href="/tags/%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/">架构设计</a><a class="post-meta__tags" href="/tags/%E5%A4%96%E8%B4%B8%E6%95%B0%E5%AD%97%E5%8C%96/">外贸数字化</a><a class="post-meta__tags" href="/tags/%E6%8A%80%E6%9C%AF%E9%80%89%E5%9E%8B/">技术选型</a><a class="post-meta__tags" href="/tags/RAG/">RAG</a></div><div class="post-share"><div class="social-share" data-image="/img/butterfly-icon.png" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/08/04/%E8%AE%A9%E5%BC%80%E5%8F%91%E4%BF%A1%E6%8B%A5%E6%9C%89%E8%AE%B0%E5%BF%86-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-8-1%E8%BF%AD%E4%BB%A3%E8%AE%B0%E5%BD%95/" title="让开发信拥有记忆:外贸智能体 v0.8.1,邮件归档与钉钉通知"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">让开发信拥有记忆:外贸智能体 v0.8.1,邮件归档与钉钉通知</div></div><div class="info-2"><div class="info-item-1"> 这是系列第三篇。前两篇讲了整体框架和客户记忆系统,这篇讲 v0.8.1 的一次关键迭代:客户开发历史知识库(第 5 个 LightRAG)、邮件归档与域名映射、公司画像沉淀、钉钉获客通知。它回答一个真问题:如何让每一封开发信,都站在这个客户过去的所有往来之上。  一、这次迭代要解决的两个真问题问题一:开发信不”认识”客户。 之前发开发信,靠的是模板 + 产品关键词 + 目标公司名称。但客户是有历史的——他回没回过信?回信里提过什么?我们给这家公司写过什么?这些信息散在收件箱和 ERP 里,起草时根本用不上。邮件没有记忆,开发信就只能是模板。 问题二:获客任务跑完了,没人知道。 全自动获客一跑就是几十分钟,发了几十封邮件——成功了、还是中途挂了,业务员不打开系统根本不知道。 v0.8.1 就干这两件事。 二、客户开发历史知识库:第 5 个 LightRAG 实例系统原来有 4 个知识库(业务&#x2F;技术&#x2F;管理&#x2F;开发信),这次加了第 5 个:客户开发历史(Port 9635)。 沉淀什么——每一次外发开发信,后台异步沉淀成档案:  开发时间、我方开发信全文 ...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/08/03/%E8%AE%A9Agent%E8%AE%B0%E4%BD%8F%E5%AE%A2%E6%88%B7-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-7-2%E8%BF%AD%E4%BB%A3%E8%AE%B0%E5%BD%95/" title="让 Agent 记住客户:外贸智能体 v0.7.2 迭代记录"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-03</div><div class="info-item-2">让 Agent 记住客户:外贸智能体 v0.7.2 迭代记录</div></div><div class="info-2"><div class="info-item-1"> 这是上一篇《企业级 AI Agent 框架实践:外贸智能体系统》的迭代续篇。那篇讲的是整体框架,这篇讲的是 v0.7.2 一次真实的版本迭代:客户记忆系统、滚动对话摘要、获客性能优化、发信策略收紧。它记录的不是”我又写了什么”,而是”我为什么这么写”。  一、这次迭代最想解决的一个问题做外贸,最珍贵的信息藏在客户的话里:  “我们需要 500ml 高白料伏特加瓶,年需求 20 万只,要配 T 型木塞。”  客户今天说完这句,可能三个月后才回来问”上次那款还能做吗”。如果 Agent 什么都不记得,他得重新讲一遍——每一次都像第一次,这是跟单里最伤体验的事。 所以 v0.7.2 的第一个目标很明确:让 Agent 跨会话记住客户的核心需求。 二、客户记忆系统:零额外 LLM 调用的沉淀方案记忆怎么落下来系统的意图预检,本来就是一次轻量级 LLM 调用(同时做澄清检测 + 视角分类)。这次迭代让它顺带多输出一个 important_memory_note:  识别客户本轮消息里的核心业务需求(瓶型、容量、材质、采购量、目标价、目的港、定制工艺、测试要求) 提炼成一句高度精炼的话,带...</div></div></div></a><a class="pagination-related" href="/2026/08/04/%E8%AE%A9%E5%BC%80%E5%8F%91%E4%BF%A1%E6%8B%A5%E6%9C%89%E8%AE%B0%E5%BF%86-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-8-1%E8%BF%AD%E4%BB%A3%E8%AE%B0%E5%BD%95/" title="让开发信拥有记忆:外贸智能体 v0.8.1,邮件归档与钉钉通知"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-04</div><div class="info-item-2">让开发信拥有记忆:外贸智能体 v0.8.1,邮件归档与钉钉通知</div></div><div class="info-2"><div class="info-item-1"> 这是系列第三篇。前两篇讲了整体框架和客户记忆系统,这篇讲 v0.8.1 的一次关键迭代:客户开发历史知识库(第 5 个 LightRAG)、邮件归档与域名映射、公司画像沉淀、钉钉获客通知。它回答一个真问题:如何让每一封开发信,都站在这个客户过去的所有往来之上。  一、这次迭代要解决的两个真问题问题一:开发信不”认识”客户。 之前发开发信,靠的是模板 + 产品关键词 + 目标公司名称。但客户是有历史的——他回没回过信?回信里提过什么?我们给这家公司写过什么?这些信息散在收件箱和 ERP 里,起草时根本用不上。邮件没有记忆,开发信就只能是模板。 问题二:获客任务跑完了,没人知道。 全自动获客一跑就是几十分钟,发了几十封邮件——成功了、还是中途挂了,业务员不打开系统根本不知道。 v0.8.1 就干这两件事。 二、客户开发历史知识库:第 5 个 LightRAG 实例系统原来有 4 个知识库(业务&#x2F;技术&#x2F;管理&#x2F;开发信),这次加了第 5 个:客户开发历史(Port 9635)。 沉淀什么——每一次外发开发信,后台异步沉淀成档案:  开发时间、我方开发信全文 ...</div></div></div></a><a class="pagination-related" href="/2026/08/02/%E4%BC%81%E4%B8%9A%E7%BA%A7AI-Agent%E6%A1%86%E6%9E%B6%E5%AE%9E%E8%B7%B5-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93%E7%B3%BB%E7%BB%9F/" title="企业级 AI Agent 框架实践:外贸智能体系统"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-02</div><div class="info-item-2">企业级 AI Agent 框架实践:外贸智能体系统</div></div><div class="info-2"><div class="info-item-1"> 这不是一篇”Hello World”级别的 Agent 教程,而是一个真正跑在生产环境的外贸智能体系统的框架拆解。它同时服务外部客户(产品咨询、以图搜图)和内部员工(知识检索、邮件收发、客户挖掘、ERP 同步),并且已经实现了全自动获客。  一、为什么做这件事公司在做玻璃瓶制造与出口。外贸业务有两个很真实的痛点: 对客户——一个德国客户问”丘比特瓶子的规格是什么”,一个中东客户把酒瓶照片甩过来问”这个能做吗”。他们不想翻几十页的产品手册,就想有人能立刻答上来。 对员工——业务员要查报价、查工艺、查管理制度,发开发信、跟客户、把客户录进 ERP。信息散在四五个系统里,操作步骤繁琐,新人上手尤其慢。 我最初的想法很简单:能不能把这些全塞进一个对话框里? 客户和员工都只对着一个”人”说话,背后由 Agent 去查知识库、上网、发邮件、写 ERP。于是有了这个系统。 二、核心设计理念12Agent = LLM + 上下文 + 工具      = 大脑 + 眼睛 + 手脚  LLM 是大脑(推理决策),上下文是眼睛(它能看到什么),工具是手脚(它能做什么)。框架层的绝大多数工作,都是在打...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/butterfly-icon.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">玉虫舞</div><div class="author-info-description">全栈开发者 · AI Agent 实践者,专注外贸数字化与自动化</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">4</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">9</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">1</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ConsoleSun"><i class="fab fa-github"></i><span>关注我</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ConsoleSun" target="_blank" title="Github"><i class="fab fa-github" style="color: #24292e;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E9%80%89%E5%9E%8B%E7%9A%84%E5%8E%9F%E5%88%99-%E4%B8%BA%E7%BA%A6%E6%9D%9F%E5%81%9A%E9%80%89%E6%8B%A9-%E4%B8%8D%E4%B8%BA%E6%BD%AE%E6%B5%81%E5%81%9A%E9%80%89%E6%8B%A9"><span class="toc-number">1.</span> <span class="toc-text">一、选型的原则:为约束做选择,不为潮流做选择</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E7%94%A8-LangChain"><span class="toc-number">2.</span> <span class="toc-text">二、为什么不用 LangChain</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#LangChain-%E8%A7%A3%E5%86%B3%E7%9A%84%E9%97%AE%E9%A2%98-%E4%B8%8D%E6%98%AF%E6%88%91%E7%9A%84%E9%97%AE%E9%A2%98"><span class="toc-number">2.1.</span> <span class="toc-text">LangChain 解决的问题,不是我的问题</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%88%91%E9%9C%80%E8%A6%81%E6%8E%A7%E5%88%B6%E7%9A%84-%E6%81%B0%E6%81%B0%E6%98%AF%E6%A1%86%E6%9E%B6%E6%8A%BD%E8%B1%A1%E6%8E%89%E7%9A%84"><span class="toc-number">2.2.</span> <span class="toc-text">我需要控制的,恰恰是框架抽象掉的</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%8E%92%E9%9A%9C%E7%9A%84%E9%80%8F%E6%98%8E%E5%BA%A6"><span class="toc-number">2.3.</span> <span class="toc-text">排障的透明度</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%80%E4%B9%88%E6%97%B6%E5%80%99%E6%88%91%E4%BC%9A%E7%94%A8"><span class="toc-number">2.4.</span> <span class="toc-text">什么时候我会用</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E7%94%A8-MCP"><span class="toc-number">3.</span> <span class="toc-text">三、为什么不用 MCP</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#MCP-%E5%8D%96%E7%9A%84%E6%98%AF%E4%BA%92%E6%93%8D%E4%BD%9C-%E6%88%91%E7%9A%84%E9%83%A8%E7%BD%B2%E9%87%8C%E4%BA%92%E6%93%8D%E4%BD%9C%E9%9C%80%E6%B1%82%E4%B8%BA%E9%9B%B6"><span class="toc-number">3.1.</span> <span class="toc-text">MCP 卖的是互操作,我的部署里互操作需求为零</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8D%8F%E8%AE%AE%E7%BB%99%E4%B8%8D%E4%BA%86%E7%9A%84-%E6%AD%A3%E6%98%AF%E6%88%91%E6%9C%80%E7%9C%8B%E9%87%8D%E7%9A%84"><span class="toc-number">3.2.</span> <span class="toc-text">协议给不了的,正是我最看重的</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%88%91%E6%B2%A1%E6%9C%89%E6%8B%92%E7%BB%9D-MCP-%E5%8F%AA%E6%98%AF%E6%B2%A1%E8%B5%B0%E5%8D%8F%E8%AE%AE%E5%B1%82"><span class="toc-number">3.3.</span> <span class="toc-text">我没有拒绝 MCP,只是没走协议层</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%80%E4%B9%88%E6%97%B6%E5%80%99%E6%88%91%E4%BC%9A%E7%94%A8-1"><span class="toc-number">3.4.</span> <span class="toc-text">什么时候我会用</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%80%89%E5%9B%BE-%E5%90%91%E9%87%8F%E6%B7%B7%E5%90%88%E6%A3%80%E7%B4%A2"><span class="toc-number">4.</span> <span class="toc-text">四、为什么选图+向量混合检索</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E5%BD%A2%E6%80%81%E5%86%B3%E5%AE%9A%E6%8A%80%E6%9C%AF"><span class="toc-number">4.1.</span> <span class="toc-text">数据形态决定技术</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BA%94%E4%B8%AA%E7%9F%A5%E8%AF%86%E5%BA%93-%E5%90%84%E5%8F%B8%E5%85%B6%E8%81%8C"><span class="toc-number">4.2.</span> <span class="toc-text">五个知识库,各司其职</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AF%9A%E5%AE%9E%E7%9A%84%E4%B8%80%E9%83%A8%E5%88%86"><span class="toc-number">4.3.</span> <span class="toc-text">诚实的一部分</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E9%80%89%E5%9E%8B%E7%9A%84%E4%B8%89%E6%9D%A1%E6%A3%80%E9%AA%8C%E6%A0%87%E5%87%86"><span class="toc-number">5.</span> <span class="toc-text">五、选型的三条检验标准</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AF%AD"><span class="toc-number">6.</span> <span class="toc-text">结语</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/04/%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E7%94%A8LangChain%E5%92%8CMCP-%E6%88%91%E7%9A%84%E6%8A%80%E6%9C%AF%E9%80%89%E5%9E%8B%E4%B8%8E%E5%8F%96%E8%88%8D/" title="为什么不用 LangChain 和 MCP:外贸 Agent 的技术选型与取舍">为什么不用 LangChain 和 MCP:外贸 Agent 的技术选型与取舍</a><time datetime="2026-08-04T14:42:41.000Z" title="发表于 2026-08-04 22:42:41">2026-08-04</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/04/%E8%AE%A9%E5%BC%80%E5%8F%91%E4%BF%A1%E6%8B%A5%E6%9C%89%E8%AE%B0%E5%BF%86-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-8-1%E8%BF%AD%E4%BB%A3%E8%AE%B0%E5%BD%95/" title="让开发信拥有记忆:外贸智能体 v0.8.1,邮件归档与钉钉通知">让开发信拥有记忆:外贸智能体 v0.8.1,邮件归档与钉钉通知</a><time datetime="2026-08-04T13:25:30.000Z" title="发表于 2026-08-04 21:25:30">2026-08-04</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/03/%E8%AE%A9Agent%E8%AE%B0%E4%BD%8F%E5%AE%A2%E6%88%B7-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-7-2%E8%BF%AD%E4%BB%A3%E8%AE%B0%E5%BD%95/" title="让 Agent 记住客户:外贸智能体 v0.7.2 迭代记录">让 Agent 记住客户:外贸智能体 v0.7.2 迭代记录</a><time datetime="2026-08-03T11:28:37.000Z" title="发表于 2026-08-03 19:28:37">2026-08-03</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/02/%E4%BC%81%E4%B8%9A%E7%BA%A7AI-Agent%E6%A1%86%E6%9E%B6%E5%AE%9E%E8%B7%B5-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93%E7%B3%BB%E7%BB%9F/" title="企业级 AI Agent 框架实践:外贸智能体系统">企业级 AI Agent 框架实践:外贸智能体系统</a><time datetime="2026-08-02T08:31:21.000Z" title="发表于 2026-08-02 16:31:21">2026-08-02</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-flex"><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">快速导航</div><div class="footer-flex-content"><a href="/" target="_blank" title="首页">首页</a><a href="/archives/" target="_blank" title="文章归档">文章归档</a><a href="/tags/" target="_blank" title="标签">标签</a><a href="/categories/" target="_blank" title="分类">分类</a></div></div></div><div class="footer-flex-items"><div class="footer-flex-item"><div class="footer-flex-title">关于</div><div class="footer-flex-content"><a href="https://github.com/ConsoleSun" target="_blank" title="GitHub">GitHub</a></div></div></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2026 By 玉虫舞</span><span class="framework-info"><span class="footer-separator">|</span><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.2</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.6.1</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.6.1"></script><script src="/js/main.js?v=5.6.1"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.6.1"></script></div></div></body></html>
