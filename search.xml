@@ -4,6 +4,70 @@
   
     
     <entry>
+      <title>工作流与 Agent 智能体:区别、联系,与一条合流的河</title>
+      <link href="/2026/08/09/%E5%B7%A5%E4%BD%9C%E6%B5%81%E4%B8%8EAgent%E6%99%BA%E8%83%BD%E4%BD%93-%E5%8C%BA%E5%88%AB%E4%B8%8E%E8%81%94%E7%B3%BB/"/>
+      <url>/2026/08/09/%E5%B7%A5%E4%BD%9C%E6%B5%81%E4%B8%8EAgent%E6%99%BA%E8%83%BD%E4%BD%93-%E5%8C%BA%E5%88%AB%E4%B8%8E%E8%81%94%E7%B3%BB/</url>
+      
+        <content type="html"><![CDATA[<blockquote><p>这是系列第八篇,也是继第四篇《为什么不用 LangChain 和 MCP》之后又一篇非迭代的个人理解类文章。前几篇都在记”我加了什么”,这篇反过来,讲一个我做了几个月 Agent 系统之后才真正想清楚的概念问题:<strong>工作流和 Agent 智能体,到底有什么区别和联系。</strong> 不空谈定义,只讲我在自己系统里摸到的东西。</p></blockquote><h2 id="一、先给它们一个朴素的画像"><a href="#一、先给它们一个朴素的画像" class="headerlink" title="一、先给它们一个朴素的画像"></a>一、先给它们一个朴素的画像</h2><p><strong>工作流(Workflow)</strong>:开发者把步骤预先排好,每一步做什么、失败了往哪走,都写在代码里。程序沿着这条图一路执行,不问你任何问题。</p><p><strong>Agent 智能体</strong>:没有预先排好的图。模型在一个”读状态 → 决定下一步 → 执行 → 看结果”的循环里,自己决定往哪走。它走的路是运行时才生成的。</p><p>一个类比:</p><ul><li>工作流是<strong>铁轨上的列车</strong>。轨道铺好,到站就停,晚点了也有调度表。</li><li>Agent 是<strong>没路的越野车</strong>。没有轨道,靠当前的地形(上下文)判断往哪个方向开,开错了还能倒回来。</li></ul><p>这个类比有个准确的推论:列车不敢开进没铺轨的地方,越野车也没有”准点到达”这一说。</p><h2 id="二、区别-控制权在谁手里-代价就是什么"><a href="#二、区别-控制权在谁手里-代价就是什么" class="headerlink" title="二、区别:控制权在谁手里,代价就是什么"></a>二、区别:控制权在谁手里,代价就是什么</h2><p>把两者摆开,区别其实只有一句话:<strong>控制权在开发者手里,还是在模型手里。</strong> 其它所有差异都是这句话的后果。</p><table><thead><tr><th>维度</th><th>工作流</th><th>Agent</th></tr></thead><tbody><tr><td>路径</td><td>预定义,写死在代码里</td><td>运行时由模型生成</td></tr><tr><td>可预测性</td><td>高,同输入同输出,可测试</td><td>低,同输入不一定同输出</td></tr><tr><td>成本</td><td>确定性执行,几乎为零</td><td>每一步决策都是一次 LLM 调用,随步数线性涨</td></tr><tr><td>失败模式</td><td>可枚举,出错好定位</td><td>不可枚举,出错难复现</td></tr><tr><td>灵活度</td><td>低,想加一步要改代码</td><td>高,加一个能力 &#x3D; 加一个工具</td></tr><tr><td>适用场景</td><td>路径清晰、要求稳定</td><td>路径开放、要求灵活</td></tr></tbody></table><p>这里面最容易被忽略的是<strong>成本</strong>。工作流每一步是代码,Agent 每一步是模型调用。同样跑完一个任务,工作流的边际成本趋近于零,Agent 的成本随决策次数线性增长。所以”能用工作流就不用 Agent”不是保守,是省钱——这个项目跑在按 token 计费的 DeepSeek 上,成本是每天都要面对的真实约束。</p><h2 id="三、联系-一个-Agent-系统里-大部分代码其实是工作流"><a href="#三、联系-一个-Agent-系统里-大部分代码其实是工作流" class="headerlink" title="三、联系:一个 Agent 系统里,大部分代码其实是工作流"></a>三、联系:一个 Agent 系统里,大部分代码其实是工作流</h2><p>这是我做这个系统最大的一个认识转变:</p><p><strong>真正跑在生产里的 Agent,不是”模型一路推理到结尾”,而是”模型只在一个个决策点介入,中间全是确定性工作流”。</strong></p><p>拿我自己的系统举例,每一块都能对上:</p><p><strong>1. 工具网关:包在每个决策点外面的工作流。</strong> 每次工具调用,都要先过一遍”熔断 → 权限 → 执行 → 校验 → 修正”五步管线。这五步全是代码,不是模型。模型只负责两件事:决定调哪个工具、传什么参数。剩下的是工作流。</p><p><strong>2. 全自动获客:一条重工作流,只有一步是 LLM。</strong> 后台一键 → 按配置逐国找客户 → 已联系邮箱&#x2F;域名去重 → 起草开发信 → 员工 SMTP 限速发送 → 自动同步 ERP。这一整条流水线里,只有”起草开发信”是模型干的,其余全是确定性的代码步骤。Agent 的自主性只体现在”顺着这条线往下走”。</p><p><strong>3. v0.9.1 的 compile_b2b_markdown_to_html:一次主动往工作流方向的回退。</strong> 让 Agent 写官网文章时,我没有让模型直接吐 HTML,而是让它只输出干净的 Markdown,再由编译器按设计系统生成页面。排版是确定性任务,本来可以让模型干,但把它拿回来交给代码,更稳、更省、更可测。这是”确定性任务,能拿走就从模型手里拿走”的一个典型动作。</p><p><strong>4. Facebook 发帖的四级降级链:工作流式的兜底。</strong> 缺页凭据 → 退回文案生成器,文案给员工人工发布;VLM 识别失败 → 回退默认文案模板;发布失败 → 返回错误信息和文案预览供手动补救;传了自定义文案 → 直接跳过 VLM 发送。这四级降级全是代码写的规则,保证”外围功能可以坏,核心链路不能跟着死”。</p><p>所以我的结论是:<strong>工作流和 Agent 不是二选一,而是分层。</strong> 工作流是骨架,LLM 是决策器官,Agent 是这一整具躯体。一个健康的 Agent 系统,是”工作流为体、LLM 为脑”——骨架撑起躯干,大脑发号施令,手脚执行动作,缺一块都不完整。</p><h2 id="四、怎么判断该用哪个"><a href="#四、怎么判断该用哪个" class="headerlink" title="四、怎么判断该用哪个"></a>四、怎么判断该用哪个</h2><p>一个朴素的标准:<strong>任务的路径,你知道怎么走吗?</strong></p><ul><li>知道,而且每一步都说得清 → 工作流。</li><li>不知道,但你能描述”该怎么判断” → Agent,让模型来做那个判断。</li></ul><p>但更准确的答案是:<strong>几乎总是混合。</strong> 把稳定的部分做成工作流,把需要判断的部分留给模型。原则就是上面那句:确定性任务,能拿走就从模型手里拿走。每拿走一块,系统就便宜一点、稳定一点、可测一点。</p><p>这里有一个可以拿来检验任何”Agent 系统”的方法:</p><blockquote><p><strong>把系统里的 LLM 调用全停掉,看看还剩什么。</strong><br>剩下的还能跑通一个任务 → 你写的主要是工作流,Agent 是点缀。<br>一停就瘫 → 你是真的依赖模型判断。</p></blockquote><p>这个检验很实用。市面上很多号称”Agent”的产品,其实是”披着 Agent 皮的工作流”;也有很多真正需要判断的环节,被人硬编码成了死板的工作流。区分它们,不是看宣传文案,是看控制权实际在哪里。</p><h2 id="五、诚实的一部分"><a href="#五、诚实的一部分" class="headerlink" title="五、诚实的一部分"></a>五、诚实的一部分</h2><p>有几点我不藏着:</p><p><strong>1. 我自己的系统也在滑动。</strong> 获客那段是重工作流,对话那段是重 Agent。这不是设计出来的,是问题逼出来的——凡是路径清楚的环节,写着写着就变成工作流了;凡是必须临场判断的,硬做成工作流就做不动。</p><p><strong>2. “Agent 化”不是越高越好。</strong> 把确定性任务交给模型,不是更智能,是更贵、更不可靠。我见过为了”更 Agent”而把一段稳定的规则流程改成模型调用,结果每次都要为它的随机输出兜底。</p><p><strong>3. 过度工作流化也有代价。</strong> 一个环节的判断写死错了,整条线就跟着错,还很难发现。真正健康的系统,是承认”判断”和”执行”是两件事,让模型判断、让代码执行。</p><h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>工作流和 Agent 不是竞争对手,是分工:<strong>工作流负责把既定的路走对,Agent 里的大脑(LLM)负责在岔路口选择。</strong> 判断交给模型,执行交给代码——这不是妥协,是工程上唯一走得通的路。</p><p>回到系列第一篇那句话:LLM 是大脑,上下文是眼睛,工具是手脚。这句话不需要再补一层”神经线”——更准确的理解是:<strong>工作流就藏在工具层里面,它就是工具层的内部结构。</strong> 手脚从来不是一根根孤立的手指,而是由很多小关节复合而成的:Agent 的每个工具,内部往往就是一段工作流。<code>lead_mining</code> 是整条获客流水线,<code>publish_wp_article</code> 是”撰写+编译+发布”,<code>post_to_facebook</code> 是”识图+四级降级+两段式发布”。所谓工作流,是工具层怎么被组织起来;所谓 Agent,是”大脑 + 眼睛 + 手脚”这一整具躯体。决定调哪只”手”的是大脑——LLM。两者本就是一体的。</p><p><em>系列目录:第一篇《企业级 AI Agent 框架实践:外贸智能体系统》(整体框架)→ 第二篇《让 Agent 记住客户:v0.7.2 迭代记录》(客户记忆)→ 第三篇《让开发信拥有记忆:v0.8.1 迭代记录》(邮件归档)→ 第四篇《为什么不用 LangChain 和 MCP:技术选型与取舍》(技术选型)→ 第五篇《让 Agent 走进钉钉:v0.8.3 双向指挥与写信叙事化》(钉钉)→ 第六篇《把屎山推倒的那天:v0.9.0 技术债清偿与 Facebook 发帖》(还债)→ 第七篇《让 Agent 会写官网文章:v0.9.1 迭代记录》(官网文章与鲁棒性)→ 本篇(工作流与 Agent 的区别与联系)。</em></p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> AI Agent </tag>
+            
+            <tag> 技术选型 </tag>
+            
+            <tag> LLM </tag>
+            
+            <tag> 架构设计 </tag>
+            
+            <tag> 工作流 </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
+      <title>让 Agent 会写官网文章:外贸智能体 v0.9.1 迭代记录</title>
+      <link href="/2026/08/07/%E8%AE%A9Agent%E4%BC%9A%E5%86%99%E5%AE%98%E7%BD%91%E6%96%87%E7%AB%A0-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-9-1%E8%BF%AD%E4%BB%A3%E8%AE%B0%E5%BD%95/"/>
+      <url>/2026/08/07/%E8%AE%A9Agent%E4%BC%9A%E5%86%99%E5%AE%98%E7%BD%91%E6%96%87%E7%AB%A0-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-9-1%E8%BF%AD%E4%BB%A3%E8%AE%B0%E5%BD%95/</url>
+      
+        <content type="html"><![CDATA[<blockquote><p>这是系列第七篇。上一篇《把屎山推倒的那天》讲了 v0.9.0 如何还债、拆结构。这一篇讲 v0.9.1——三个看起来不搭界的改动凑成一版:让 Agent 会写官网文章、让工具调用经得起截断、让真实凭据不再进代码库。三个改动,对应三个方向:能力、稳定、底线。</p></blockquote><h2 id="一、Agent-开始写官网文章"><a href="#一、Agent-开始写官网文章" class="headerlink" title="一、Agent 开始写官网文章"></a>一、Agent 开始写官网文章</h2><p>公司的官网需要持续产出 B2B 文章来撑 SEO。以前这条产线是纯人力的:业务员想选题、查资料、写正文,还得自己排版——把 Markdown 手工改成一堆 inline CSS 的 HTML,再登录 WordPress 后台粘贴发布。写文章本身不难,难在”会写又会排又会发”。</p><p>v0.9.1 把这条产线交给 Agent。设计上最核心的一个决定是:<strong>把排版从 LLM 手里拿走</strong>。</p><p>LLM 能写出好内容,但让它在正文里手动拼 <code>&lt;div style=&quot;...&quot;&gt;</code> 这种内联样式,既容易错又难维护。而”把 Markdown 编译成公司设计系统的 HTML”是个确定性任务——确定性任务不该让大模型去做,该让代码做。</p><p>于是有了 <code>compile_b2b_markdown_to_html</code>:LLM 只负责输出干净的英文 Markdown,后台编译器按 b2b-style-kit v1.3 设计系统自动生成:</p><ul><li>自动提取 <code>##</code> 标题,生成带锚点的目录卡片(TOC)</li><li>Markdown 表格 → 棕色表头的专业对比表格</li><li>图片按布局规则处理:竖图必须左右混排(Layout A&#x2F;B,一侧 220px 图、一侧段落文字,多张一左一右交替),只有横图才允许整幅居中</li><li>文末自动拼接 CTA 询盘区块</li><li>默认打入分类 ID 22(Industry News),发布状态默认 draft</li></ul><p>配套 5 个工具,全部 staff&#x2F;admin 专用:</p><table><thead><tr><th>工具</th><th>作用</th></tr></thead><tbody><tr><td><code>publish_wp_article</code></td><td>撰写 + 编译 + 发布(默认草稿)</td></tr><tr><td><code>update_wp_article</code></td><td>合并更新已有文章</td></tr><tr><td><code>delete_wp_article</code></td><td>删除(内置防误删纪律)</td></tr><tr><td><code>upload_wp_media</code></td><td>传图到媒体库</td></tr><tr><td><code>search_wp_posts</code></td><td>检索站内已有文章,做内链去重 + SEO 内链</td></tr></tbody></table><p>写作硬性要求直接写进了员工 prompt:全文严禁 Emoji、严禁 <code>**</code> 加粗、竖图必须 <code>![Alt | left/right](URL)</code> 左右混排。这些规则不是提示词技巧,是<strong>和设计系统对齐的约束</strong>——LLM 在生成时就带上排版约束,编译器才能产出符合规范的页面。</p><p>到这里,Agent 的”输出口”已经有三条:写信(开发信)、发帖(Facebook)、写官网文章(WordPress)。前两个是短周期沟通,官网文章是长周期资产——它会一直在搜索结果里被找到,持续给公司带来询盘。</p><h2 id="二、给工具调用装上防截断"><a href="#二、给工具调用装上防截断" class="headerlink" title="二、给工具调用装上防截断"></a>二、给工具调用装上防截断</h2><p>这一版没有新功能的一侧,是一个反复咬人的老问题:DeepSeek 是推理模型,thinking tokens 经常把 max_tokens 吃满,工具参数的 JSON 在中间被截断,<code>json.loads</code> 直接抛异常,这一轮工具调用就废了。</p><p>以前的处理是抛错让 LLM 重试,但重试往往还是截断——问题没有根治。</p><p>这次在 loop.py 里加了一个 <code>_safe_parse_json_args</code>,五层容错:</p><ol><li>非严格解析(<code>strict=False</code>,容忍不合法但可读的 JSON)</li><li>清理换行与控制字符再解析</li><li>自动补全末尾未闭合的引号和括号(<strong>截断修复——最常用的一层</strong>)</li><li>正则抽取已完成的键值对字段(保底防崩溃)</li><li><code>arguments</code> 嵌套解包</li></ol><p>同时把 LLM 超时从 45s 提到 120s、<code>LLM_MAX_TOKENS</code> 默认从 4096 提到 8192——给推理模型留出思考空间。</p><p>网关层也补了两个容错:参数被 LLM 包成 <code>{&quot;arguments&quot;: &quot;...&quot;}</code> 时自动解包;只把函数签名允许的参数传给工具(之前可能因为多余参数抛 TypeError)。工具签名里声明 <code>session_id</code> &#x2F; <code>user_profile</code> 的,网关自动注入——工具不用再从请求体里偷上下文。</p><h2 id="三、真实凭据不进代码库"><a href="#三、真实凭据不进代码库" class="headerlink" title="三、真实凭据不进代码库"></a>三、真实凭据不进代码库</h2><p>这一版差点踩一个老坑:WordPress 应用密码——生产站 admin 的写权限——一度躺在 <code>.env.example</code> 里,还硬编码在 <code>config.py</code> 的默认值里。更要命的是明文和 base64 解码出来对不上,说明是手抄的、还抄错了一处。</p><p>好在这次在提交前查出来了,真实密码从没进过 git 历史。处理是:</p><ul><li><code>.env.example</code> &#x2F; <code>config.py</code> &#x2F; <code>README</code> 一律换成占位符</li><li>真实值只在 gitignored 的 <code>.env</code></li><li>顺带把 WP REST API 硬编码的 <code>verify=False</code> 改成 <code>WP_VERIFY_TLS</code> 默认 true——Basic 认证走不校验 TLS 的连接,等于把密码明文发给可能被劫持的通道</li></ul><p>上一篇说过一句话:”真实凭据不进代码库,是底线。”这一版差点自己破了这条底线。</p><p><strong>凭据不是配置,是秘密。秘密只能有一个家:开发者的 <code>.env</code>,不能进仓库。</strong></p><h2 id="四、数字"><a href="#四、数字" class="headerlink" title="四、数字"></a>四、数字</h2><ul><li>工具注册表:18 → 23(新增 5 个 WP 工具;customer 5 个不变,staff&#x2F;admin 23 个全量)</li><li>测试:765 → 773(新增 <code>test_wp_publish.py</code> 8 条)</li><li>新增 5 个工具全部走同一条网关管线,自动获得熔断、权限、校验、失败修正——上一篇说的设计红利,这次又兑现了一次</li></ul><h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>v0.9.1 三个改动,三个方向:<strong>能力</strong>(Agent 会写官网文章)、<strong>稳定</strong>(工具调用不再随机截断)、<strong>底线</strong>(真实凭据不进门)。</p><p>回到系列第一篇那句话:LLM 是大脑、上下文是眼睛、工具是手脚。这一版,手脚又长了一双——而且这次不是”动手”(执行),是”写作”。Agent 从只会回消息、写信、发帖,到会产出长周期的官网内容资产。能力在往外扩,但地基稳不稳,还得看下一版。</p><hr><p><em>系列目录:第一篇《企业级 AI Agent 框架实践:外贸智能体系统》(整体框架)→ 第二篇《让 Agent 记住客户:v0.7.2 迭代记录》(客户记忆)→ 第三篇《让开发信拥有记忆:v0.8.1 迭代记录》(邮件归档)→ 第四篇《为什么不用 LangChain 和 MCP:技术选型与取舍》(技术选型)→ 第五篇《让 Agent 走进钉钉:v0.8.3 双向指挥与写信叙事化》(钉钉)→ 第六篇《把屎山推倒的那天:外贸智能体 v0.9.0 技术债清偿与 Facebook 发帖》(v0.9.0 技术债清偿与 Facebook 发帖)→ 本篇(v0.9.1 官网文章与鲁棒性)。</em></p>]]></content>
+      
+      
+      <categories>
+          
+          <category> 技术 </category>
+          
+      </categories>
+      
+      
+        <tags>
+            
+            <tag> AI Agent </tag>
+            
+            <tag> LLM </tag>
+            
+            <tag> 外贸数字化 </tag>
+            
+            <tag> WordPress </tag>
+            
+        </tags>
+      
+    </entry>
+    
+    
+    
+    <entry>
       <title>把屎山推倒的那天:外贸智能体 v0.9.0 技术债清偿与 Facebook 发帖</title>
       <link href="/2026/08/06/%E6%8A%8A%E5%B1%8E%E5%B1%B1%E6%8E%A8%E5%80%92%E7%9A%84%E9%82%A3%E5%A4%A9-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-9-0%E6%8A%80%E6%9C%AF%E5%80%BA%E6%B8%85%E5%81%BF%E4%B8%8EFacebook%E5%8F%91%E5%B8%96/"/>
       <url>/2026/08/06/%E6%8A%8A%E5%B1%8E%E5%B1%B1%E6%8E%A8%E5%80%92%E7%9A%84%E9%82%A3%E5%A4%A9-%E5%A4%96%E8%B4%B8%E6%99%BA%E8%83%BD%E4%BD%93v0-9-0%E6%8A%80%E6%9C%AF%E5%80%BA%E6%B8%85%E5%81%BF%E4%B8%8EFacebook%E5%8F%91%E5%B8%96/</url>
@@ -131,9 +195,9 @@
             
             <tag> 外贸数字化 </tag>
             
-            <tag> 邮件归档 </tag>
-            
             <tag> 钉钉 </tag>
+            
+            <tag> 邮件归档 </tag>
             
         </tags>
       
